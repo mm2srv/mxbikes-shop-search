@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mxbikes-shop Track Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Custom scrollbar for a cleaner look in dark mode */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937; /* bg-gray-800 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563; /* bg-gray-600 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; /* bg-gray-500 */
+        }
+        .sort-button.active {
+            background-color: #2563eb; /* bg-blue-600 */
+            color: white;
+        }
+        .track-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .track-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+        /* Style for the select dropdown */
+        select {
+            appearance: none; /* Remove default arrow on some browsers */
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20fill%3D%22%239ca3af%22%3E%3Cpath%20d%3D%22M7.293%209.293a1%201%200%20011.414%200L10%2010.586l1.293-1.293a1%201%200%20111.414%201.414l-2%202a1%201%200%2001-1.414%200l-2-2a1%201%200%20010-1.414z%22%2F%3E%3C%2Fsvg%3E');
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem; /* Make space for the custom arrow */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-bold text-white">mxbikes-shop Track Search</h1>
+            <p class="text-gray-400 mt-2">Find mxbikes-shop tracks</p>
+        </header>
+
+        <main>
+            <div class="mb-8 p-6 bg-gray-800 rounded-lg shadow-lg">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
+                    <div class="lg:col-span-1">
+                        <label for="search" class="block text-sm font-medium text-gray-300 mb-1">Search Tracks:</label>
+                        <input
+                            type="text"
+                            id="search"
+                            v-model="searchQuery"
+                            placeholder="Name, author, in-game name..."
+                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 text-gray-200 rounded-md focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500"
+                        />
+                    </div>
+
+                    <div class="lg:col-span-1">
+                        <label for="difficulty-filter" class="block text-sm font-medium text-gray-300 mb-1">Filter by Difficulty:</label>
+                        <select
+                            id="difficulty-filter"
+                            v-model="selectedDifficulty"
+                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 text-gray-200 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="all">All Difficulties</option>
+                            <option v-for="difficulty in availableDifficulties" :key="difficulty" :value="difficulty">
+                                {{ difficulty }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="lg:col-span-1">
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Sort by:</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                v-for="sortOption in sortOptions"
+                                :key="sortOption.key"
+                                @click="setSort(sortOption.key)"
+                                :class="['sort-button px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ease-in-out', sortBy === sortOption.key ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300']"
+                            >
+                                {{ sortOption.label }} {{ getSortIcon(sortOption.key) }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="isLoading" class="text-center py-10">
+                <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2 text-gray-400">Loading tracks...</p>
+            </div>
+            <div v-if="error" class="bg-red-700 text-white p-4 rounded-md shadow-md text-center">
+                <p><strong>Error:</strong> {{ error }}</p>
+                <p class="text-sm">Displaying sample data as a fallback.</p>
+            </div>
+
+            <div v-if="!isLoading && !error && filteredAndSortedTracks.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div
+                    v-for="track in filteredAndSortedTracks"
+                    :key="track.track_url || track.track_name + track.author_name"
+                    class="track-card bg-gray-800 rounded-lg shadow-xl overflow-hidden flex flex-col"
+                >
+                    <div class="p-5 flex-grow">
+                        <h2 class="text-xl font-semibold text-blue-400 mb-2">
+                            <a :href="track.track_url" target="_blank" class="hover:underline" rel="noopener noreferrer">{{ track.track_name }}</a>
+                        </h2>
+                        <p class="text-sm text-gray-400 mb-1">
+                            By: <a :href="track.author_url" target="_blank" class="text-blue-500 hover:underline" rel="noopener noreferrer">{{ track.author_name }}</a>
+                        </p>
+                        <div class="mt-3 space-y-1 text-sm">
+                            <p><strong class="font-medium text-gray-300">Price:</strong> <span class="text-green-400">{{ track.price === '$0.00' || (track.price && track.price.toLowerCase() === 'free') ? 'Free' : track.price }}</span></p>
+                            <p><strong class="font-medium text-gray-300">Difficulty:</strong> <span :class="getDifficultyClass(track.difficulty)">{{ track.difficulty || 'N/A' }}</span></p>
+                            <p><strong class="font-medium text-gray-300">Released:</strong> {{ formatDate(track.releasedDateObj) }}</p>
+                            <p><strong class="font-medium text-gray-300">Last Updated:</strong> {{ formatDate(track.lastUpdatedObj) }}</p>
+                            <p><strong class="font-medium text-gray-300">File Size:</strong> {{ track.file_size || 'N/A' }}</p>
+                            <p><strong class="font-medium text-gray-300">Version:</strong> {{ track.version || 'N/A' }}</p>
+                            <p><strong class="font-medium text-gray-300">In-Game Name:</strong> {{ track.ingame_mod_name || 'N/A' }}</p>
+                            <p><strong class="font-medium text-gray-300">Compatible Beta:</strong> {{ track.compatible_with_beta || 'N/A' }}</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-700 p-4 text-center">
+                         <a :href="track.track_url" target="_blank" rel="noopener noreferrer" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors duration-150 ease-in-out">
+                            View Track Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="!isLoading && !error && filteredAndSortedTracks.length === 0" class="text-center py-10">
+                <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <h3 class="mt-2 text-lg font-medium text-gray-300">No tracks found</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    Try adjusting your search or filter criteria.
+                </p>
+            </div>
+        </main>
+
+        <footer class="mt-12 pt-8 border-t border-gray-700 text-center">
+            <p class="text-sm text-gray-500">&copy; {{ new Date().getFullYear() }} mxbikes-shop Track Browser.</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        const App = {
+            data() {
+                return {
+                    rawTracks: [],
+                    searchQuery: '',
+                    sortBy: 'releasedDateObj',
+                    sortOrder: 'desc',
+                    selectedDifficulty: 'all',
+                    isLoading: true,
+                    error: null,
+                    tracksJsonUrl: 'mxbikes-shop-tracks.json',
+                    sampleTracks: [
+                        {
+                            "track_name": "Richards Compound", "track_url": "https://mxbikes-shop.com/downloads/richards-compound/", "author_name": "Jonesy", "author_url": "https://mxbikes-shop.com/creator/gjones122", "price": "$1.50", "released_date": "March 20, 2025", "last_updated": "March 20, 2025", "file_size": "543,000 KB", "version": "1.0", "ingame_mod_name": "Richards Compound, Richards Compound_SX", "difficulty": "Medium", "compatible_with_beta": "B19"
+                        },
+                        {
+                            "track_name": "Canelinha GP", "track_url": "https://mxbikes-shop.com/downloads/canelinha-gp/", "author_name": "douglasmx117", "author_url": "https://mxbikes-shop.com/creator/douglasmx117", "price": "$1.50", "released_date": "February 5, 2025", "last_updated": "February 4, 2025", "file_size": "318 MB", "version": "1.0", "ingame_mod_name": "DP117 e MF Canelinha GP", "difficulty": "Medium", "compatible_with_beta": "19"
+                        },
+                        {
+                            "track_name": "Alpha Test Track", "track_url": "https://mxbikes-shop.com/downloads/alpha-test/", "author_name": "Dev Team", "author_url": "https://mxbikes-shop.com/creator/devteam", "price": "Free", "released_date": "January 1, 2024", "last_updated": "January 15, 2024", "file_size": "120,000 KB", "version": "0.5", "ingame_mod_name": "Alpha Test", "difficulty": "Easy", "compatible_with_beta": "B18"
+                        },
+                        {
+                            "track_name": "Zulu Extreme", "track_url": "https://mxbikes-shop.com/downloads/zulu-extreme/", "author_name": "Zulu Master", "author_url": "https://mxbikes-shop.com/creator/zulumaster", "price": "$5.00", "released_date": "December 25, 2023", "last_updated": "May 1, 2024", "file_size": "850 MB", "version": "2.1", "ingame_mod_name": "ZuluX", "difficulty": "Hard", "compatible_with_beta": "B19"
+                        },
+                        {
+                            "track_name": "Desert Rally", "track_url": "https://mxbikes-shop.com/downloads/desert-rally/", "author_name": "SandyRider", "author_url": "https://mxbikes-shop.com/creator/sandyrider", "price": "$2.99", "released_date": "November 10, 2024", "last_updated": "November 10, 2024", "file_size": "600 MB", "version": "1.0", "ingame_mod_name": "Desert Rally Pro", "difficulty": "Hard", "compatible_with_beta": "B19"
+                        },
+                        {
+                            "track_name": "Beginner's Luck", "track_url": "https://mxbikes-shop.com/downloads/beginners-luck/", "author_name": "NewbieDev", "author_url": "https://mxbikes-shop.com/creator/newbiedev", "price": "Free", "released_date": "April 1, 2025", "last_updated": "April 2, 2025", "file_size": "50 MB", "version": "1.0", "ingame_mod_name": "Easy Peasy", "difficulty": "Easy", "compatible_with_beta": "B19"
+                        },
+                        {
+                           "track_name": "Proving Grounds", "track_url": "https://mxbikes-shop.com/downloads/proving-grounds/", "author_name": "VeteranRacer", "author_url": "https://mxbikes-shop.com/creator/veteranracer", "price": "$3.50", "released_date": "October 15, 2023", "last_updated": "January 10, 2024", "file_size": "450 MB", "version": "1.2", "ingame_mod_name": "ProvingGrounds", "difficulty": "Expert", "compatible_with_beta": "B19"
+                        }
+                    ],
+                    sortOptions: [
+                        { key: 'author_name', label: 'Author' },
+                        { key: 'priceNum', label: 'Price' },
+                        { key: 'releaseYear', label: 'Year' },
+                        { key: 'releasedDateObj', label: 'Released' },
+                        { key: 'lastUpdatedObj', label: 'Updated' },
+                    ]
+                };
+            },
+            computed: {
+                processedTracks() {
+                    if (!this.rawTracks) return [];
+                    return this.rawTracks.map(track => ({
+                        ...track,
+                        priceNum: this.parsePrice(track.price),
+                        releasedDateObj: this.parseDate(track.released_date),
+                        lastUpdatedObj: this.parseDate(track.last_updated),
+                        releaseYear: track.released_date ? new Date(this.parseDate(track.released_date)).getFullYear() : null,
+                        difficulty: track.difficulty || 'N/A' // Ensure difficulty has a fallback
+                    }));
+                },
+                availableDifficulties() {
+                    const difficulties = new Set();
+                    this.processedTracks.forEach(track => {
+                        if (track.difficulty && track.difficulty !== 'N/A') {
+                            difficulties.add(track.difficulty);
+                        }
+                    });
+                    return Array.from(difficulties).sort(); // Sort for consistent order in dropdown
+                },
+                filteredAndSortedTracks() {
+                    let tracks = [...this.processedTracks];
+
+                    // Filtering by difficulty
+                    if (this.selectedDifficulty !== 'all') {
+                        tracks = tracks.filter(track => track.difficulty === this.selectedDifficulty);
+                    }
+
+                    // Filtering by search query
+                    if (this.searchQuery) {
+                        const query = this.searchQuery.toLowerCase().trim();
+                        if (query) {
+                            tracks = tracks.filter(track =>
+                                (track.track_name && track.track_name.toLowerCase().includes(query)) ||
+                                (track.author_name && track.author_name.toLowerCase().includes(query)) ||
+                                (track.ingame_mod_name && track.ingame_mod_name.toLowerCase().includes(query))
+                            );
+                        }
+                    }
+
+                    // Sorting logic
+                    tracks.sort((a, b) => {
+                        let valA = a[this.sortBy];
+                        let valB = b[this.sortBy];
+
+                        if (this.sortBy === 'priceNum' || this.sortBy === 'releaseYear') {
+                            valA = valA === null ? (this.sortOrder === 'asc' ? Infinity : -Infinity) : valA;
+                            valB = valB === null ? (this.sortOrder === 'asc' ? Infinity : -Infinity) : valB;
+                        } else if (this.sortBy === 'releasedDateObj' || this.sortBy === 'lastUpdatedObj') {
+                            valA = valA === null ? (this.sortOrder === 'asc' ? new Date(8640000000000000) : new Date(-8640000000000000)) : valA;
+                            valB = valB === null ? (this.sortOrder === 'asc' ? new Date(8640000000000000) : new Date(-8640000000000000)) : valB;
+                        } else if (typeof valA === 'string' && typeof valB === 'string') {
+                            valA = valA.toLowerCase();
+                            valB = valB.toLowerCase();
+                        }
+
+                        let comparison = 0;
+                        if (valA > valB) comparison = 1;
+                        else if (valA < valB) comparison = -1;
+                        return this.sortOrder === 'asc' ? comparison : comparison * -1;
+                    });
+
+                    return tracks;
+                }
+            },
+            methods: {
+                async fetchTracks() {
+                    this.isLoading = true;
+                    this.error = null;
+                    try {
+                        const response = await fetch(this.tracksJsonUrl);
+                        if (!response.ok) {
+                          throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                        }
+                        const data = await response.json();
+                        this.rawTracks = data;
+                        //this.rawTracks = JSON.parse(JSON.stringify(this.sampleTracks));
+
+                        if (!Array.isArray(this.rawTracks)) {
+                            console.warn("Fetched data is not an array. Using empty array.", this.rawTracks);
+                            this.rawTracks = [];
+                            throw new Error("Track data is not in the expected format (array).");
+                        }
+
+                    } catch (e) {
+                        this.error = `Failed to load tracks: ${e.message}. Check console.`;
+                        console.error("Fetch error details:", e);
+                        if (this.sampleTracks && this.sampleTracks.length > 0) {
+                            //this.rawTracks = JSON.parse(JSON.stringify(this.sampleTracks));
+                            this.rawTracks = [];
+                        } else {
+                            this.rawTracks = [];
+                        }
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+                parsePrice(priceStr) {
+                    if (!priceStr) return 0;
+                    if (typeof priceStr === 'string' && priceStr.toLowerCase().trim() === 'free') return 0;
+                    const num = parseFloat(String(priceStr).replace(/[^0-9.-]+/g, ""));
+                    return isNaN(num) ? 0 : num;
+                },
+                parseDate(dateStr) {
+                    if (!dateStr) return null;
+                    const parsed = Date.parse(dateStr);
+                    return isNaN(parsed) ? null : new Date(parsed);
+                },
+                formatDate(dateObj) {
+                    if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj)) return 'N/A';
+                    try {
+                        return dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                    } catch (e) {
+                        return 'Invalid Date';
+                    }
+                },
+                setSort(key) {
+                    if (this.sortBy === key) {
+                        this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortBy = key;
+                        this.sortOrder = 'asc';
+                    }
+                },
+                getSortIcon(key) {
+                    if (this.sortBy === key) {
+                        return this.sortOrder === 'asc' ? '▲' : '▼';
+                    }
+                    return '↕';
+                },
+                getDifficultyClass(difficulty) {
+                    if (!difficulty) return 'text-gray-400';
+                    const d = difficulty.toLowerCase();
+                    if (d === 'easy') return 'text-green-400';
+                    if (d === 'medium') return 'text-yellow-400';
+                    if (d === 'hard') return 'text-red-400';
+                    if (d === 'expert' || d === 'extreme') return 'text-purple-400'; // Added expert/extreme
+                    return 'text-gray-300';
+                }
+            },
+            created() {
+                this.fetchTracks();
+            }
+        };
+
+        Vue.createApp(App).mount('#app');
+    </script>
+
+</body>
+</html>
