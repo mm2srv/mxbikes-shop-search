@@ -1,0 +1,32 @@
+name: Update Tracks Every 12 Hours
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  update_and_commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.x'
+
+      - name: Configure Git and Pull Latest Changes
+        run: |
+          git config --global user.name 'GitHub Actions Bot'
+          git config --global user.email 'actions@github.com'
+          git pull origin main --ff-only # Pull latest changes from main
+
+      - name: Make update.sh executable
+        run: chmod +x ./update.sh
+
+      - name: Run update script
+        run: ./update.sh
