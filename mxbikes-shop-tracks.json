@@ -1,5 +1,21 @@
 [
   {
+    "track_name": "Pacific Gardens",
+    "track_url": "https://mxbikes-shop.com/downloads/pacific-gardens/",
+    "author_name": "yandellllllllllll",
+    "author_url": "https://mxbikes-shop.com/creator/yans_0204",
+    "price": "$1.00",
+    "released_date": "May 22, 2025",
+    "last_updated": "May 21, 2025",
+    "file_size": "300",
+    "version": "1",
+    "server_version_url": "https://cdn.mxbikes-shop.com/wp-content/uploads/edd/2025/05/PacificGardensserverPKZ.zip",
+    "ingame_mod_name": "YC - Pacific Gardens",
+    "difficulty": "Medium",
+    "compatible_with_beta": "19b",
+    "scraped_timestamp": "2025-05-22T21:53:11+02:00"
+  },
+  {
     "track_name": "Skyline Scramble",
     "track_url": "https://mxbikes-shop.com/downloads/skyline-scramble/",
     "author_name": "eaglemods",
